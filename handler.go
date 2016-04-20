@@ -20,6 +20,7 @@ const (
 
 type Handler struct {
 	Schema *graphql.Schema
+	RootObject map[string]interface{}
 	pretty   bool
 	graphiql bool
 }
@@ -125,6 +126,7 @@ func (h *Handler) ContextHandler(ctx context.Context, w http.ResponseWriter, r *
 		RequestString:  opts.Query,
 		VariableValues: opts.Variables,
 		OperationName:  opts.OperationName,
+		RootObject:     h.RootObject,
 		Context:        ctx,
 	}
 	result := graphql.Do(params)
@@ -161,6 +163,7 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 type Config struct {
 	Schema   *graphql.Schema
+	RootObject map[string]interface{}
 	Pretty   bool
 	GraphiQL bool
 }
@@ -168,6 +171,7 @@ type Config struct {
 func NewConfig() *Config {
 	return &Config{
 		Schema:   nil,
+		RootObject: map[string]interface{}{},
 		Pretty:   true,
 		GraphiQL: true,
 	}
@@ -183,6 +187,7 @@ func New(p *Config) *Handler {
 
 	return &Handler{
 		Schema:   p.Schema,
+		RootObject: p.RootObject,
 		pretty:   p.Pretty,
 		graphiql: p.GraphiQL,
 	}
