@@ -8,8 +8,6 @@ import (
 	"strings"
 
 	"github.com/graphql-go/graphql"
-
-	"context"
 )
 
 const (
@@ -19,8 +17,7 @@ const (
 )
 
 type Handler struct {
-	Schema *graphql.Schema
-	RootObject map[string]interface{}
+	Params   graphql.Params
 	pretty   bool
 	graphiql bool
 }
@@ -114,28 +111,18 @@ func NewRequestOptions(r *http.Request) *RequestOptions {
 	}
 }
 
-// ContextHandler provides an entrypoint into executing graphQL queries with a
-// user-provided context.
-func (h *Handler) ContextHandler(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	// get query
+// ServeHTTP provides an entrypoint into executing graphQL queries.
+func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	opts := NewRequestOptions(r)
-
-	// execute graphql query
-	params := graphql.Params{
-		Schema:         *h.Schema,
-		RequestString:  opts.Query,
-		VariableValues: opts.Variables,
-		OperationName:  opts.OperationName,
-		RootObject:     h.RootObject,
-		Context:        ctx,
-	}
-	result := graphql.Do(params)
-
+	h.Params.RequestString = opts.Query
+	h.Params.VariableValues = opts.Variables
+	h.Params.OperationName = opts.OperationName
+	result := graphql.Do(h.Params)
 	if h.graphiql {
 		acceptHeader := r.Header.Get("Accept")
 		_, raw := r.URL.Query()["raw"]
 		if !raw && !strings.Contains(acceptHeader, "application/json") && strings.Contains(acceptHeader, "text/html") {
-			renderGraphiQL(w, params)
+			renderGraphiQL(w, h.Params)
 			return
 		}
 	}
@@ -156,39 +143,16 @@ func (h *Handler) ContextHandler(ctx context.Context, w http.ResponseWriter, r *
 	}
 }
 
-// ServeHTTP provides an entrypoint into executing graphQL queries.
-func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	h.ContextHandler(r.Context(), w, r)
-}
-
 type Config struct {
-	Schema   *graphql.Schema
-	RootObject map[string]interface{}
+	Params   graphql.Params
 	Pretty   bool
 	GraphiQL bool
 }
 
-func NewConfig() *Config {
-	return &Config{
-		Schema:   nil,
-		RootObject: map[string]interface{}{},
-		Pretty:   true,
-		GraphiQL: true,
-	}
-}
-
-func New(p *Config) *Handler {
-	if p == nil {
-		p = NewConfig()
-	}
-	if p.Schema == nil {
-		panic("undefined GraphQL schema")
-	}
-
+func New(c *Config) *Handler {
 	return &Handler{
-		Schema:   p.Schema,
-		RootObject: p.RootObject,
-		pretty:   p.Pretty,
-		graphiql: p.GraphiQL,
+		Params:   c.Params,
+		pretty:   c.Pretty,
+		graphiql: c.GraphiQL,
 	}
 }
